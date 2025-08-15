@@ -510,11 +510,11 @@ NAV_ITEMS = ["Season Leaders", "Weekly View", "Player Details"]
 nav = st.sidebar.selectbox("", NAV_ITEMS, label_visibility="collapsed", key="nav")
 
 # Staff info
-st.sidebar.markdown("---")
-hc = st.secrets.get("STAFF_HEAD_COACH", "")
-oc = st.secrets.get("STAFF_OC", "")
-dc = st.secrets.get("STAFF_DC", "")
-st.sidebar.caption(f"Head Coach: {hc}  \nOffensive Coordinator: {oc}  \nDefensive Coordinator: {dc}")
+#st.sidebar.markdown("---")
+#hc = st.secrets.get("STAFF_HEAD_COACH", "")
+#oc = st.secrets.get("STAFF_OC", "")
+#dc = st.secrets.get("STAFF_DC", "")
+#st.sidebar.caption(f"Head Coach: {hc}  \nOffensive Coordinator: {oc}  \nDefensive Coordinator: {dc}")
 
 # ============================
 # Season Leaders view (tables)
