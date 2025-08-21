@@ -1,0 +1,16 @@
+/.streamlit/secrets.toml
+
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+EOF
+

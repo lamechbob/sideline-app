@@ -10,6 +10,8 @@
 # - Season Leaders rendered as tables (no index)
 # - Weekly View: Pass Deflections next to Interceptions; Rush Attempts from "Rush" events when needed;
 #   Rushing Average (yds/att) & Receiving Average (yds/catch); Targets fixed to only "Pas Target" + "Catch"
+# - Player Details: Added Solo Tackles, Assisted Tackles, Deflections, Rushing Average, Receiving Average in Season Totals
+#   and included Assisted Tackles + Deflections + per-game rushing/receiving averages in Game Log
 # -------------------------------------------------
 
 import io
@@ -59,7 +61,7 @@ st.markdown(
       /* Make the first visible column (Player) render as black in st.table (fallback) */
       [data-testid="stTable"] table tbody tr td:first-child { color: #000 !important; }
       [data-testid="stTable"] table thead tr th:first-child { color: #000 !important; }
-          /* Hide the index column in st.table entirely (row headers + top-left corner) */
+      /* Hide the index column in st.table entirely (row headers + top-left corner) */
       [data-testid="stTable"] table th.row_heading,
       [data-testid="stTable"] table td.row_heading { display: none !important; }
       [data-testid="stTable"] table th.blank { display: none !important; }
@@ -379,11 +381,16 @@ def weekly_event_counts(vf: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     return rush_counts, target_counts
 
 # ============================
-# Player Details helper (restored)
+# Player Details helper (updated)
 # ============================
 
 def show_player_detail(player_id: str, season_year: int, full_df: pd.DataFrame, roster_df: pd.DataFrame):
-    """Render a player's season summary + game log for the given season."""
+    """Render a player's season summary + game log for the given season.
+
+    Updates:
+      - Season Totals now include Assisted Tackles, Pass Deflections, Rushing Average, Receiving Average.
+      - Game Log now includes Assisted Tackles and Pass Deflections, plus per-game rushing/receiving averages.
+    """
     pdf = full_df[(full_df["player_id"] == player_id) & (full_df["season_year"] == season_year)].copy()
     if pdf.empty:
         st.info("No data found for this player.")
@@ -393,7 +400,22 @@ def show_player_detail(player_id: str, season_year: int, full_df: pd.DataFrame, 
     team = pdf["team_name"].iloc[0]
 
     # Totals across the season for the selected player
-    totals = {c: int(pd.to_numeric(pdf[c], errors="coerce").fillna(0).sum()) for c in STAT_COLS if c in pdf.columns}
+    totals = {}
+    for c in STAT_COLS:
+        if c in pdf.columns:
+            totals[c] = float(pd.to_numeric(pdf[c], errors="coerce").fillna(0).sum())
+
+    # Derived season averages (divide-by-zero safe)
+    def _safe_div(n, d):
+        try:
+            n = float(n)
+            d = float(d)
+            return n / d if d else 0.0
+        except Exception:
+            return 0.0
+
+    totals["rushing_avg"] = round(_safe_div(totals.get("rushing_yards", 0.0), totals.get("rush_attempts", 0.0)), 1)
+    totals["receiving_avg"] = round(_safe_div(totals.get("receiving_yards", 0.0), totals.get("catches", 0.0)), 1)
 
     # Prefer external roster; fall back to inline columns in the summary view
     height = weight = position = jersey = None
@@ -427,36 +449,56 @@ def show_player_detail(player_id: str, season_year: int, full_df: pd.DataFrame, 
         st.metric("Jersey #", value="—" if pd.isna(jersey) or jersey is None else int(jersey))
 
     key_sections = [
-        ("Passing", ["passing_yards", "passing_completions", "passing_attempts", "passing_tds"]),
-        ("Rushing", ["rush_attempts", "rushing_yards", "rushing_tds"]),
-        ("Receiving", ["targets", "catches", "receiving_yards", "receiving_tds"]),
-        ("Defense", ["total_tackles", "sacks", "interceptions", "defensive_tds", "safeties"]),
-        ("Kicking", ["fg_attempts", "fg_made", "pat_attempts", "pat_made", "punts"]),
-        ("Returns", ["kick_returns", "kick_return_yards", "punt_returns", "punt_return_yards"]),
+        ("Passing",   ["passing_yards", "passing_completions", "passing_attempts", "passing_tds"]),
+        ("Rushing",   ["rush_attempts", "rushing_yards", "rushing_avg", "rushing_tds"]),
+        ("Receiving", ["targets", "catches", "receiving_yards", "receiving_avg", "receiving_tds"]),
+        ("Defense",   ["total_tackles", "solo_tackles", "assisted_tackles", "sacks", "interceptions", "deflections", "defensive_tds", "safeties"]),
+        ("Kicking",   ["fg_attempts", "fg_made", "pat_attempts", "pat_made", "punts"]),
+        ("Returns",   ["kick_returns", "kick_return_yards", "punt_returns", "punt_return_yards"]),
     ]
 
+    st.subheader("Season Totals")
+
     for section, cols_list in key_sections:
-        present = [c for c in cols_list if c in pdf.columns]
+        # Consider derived metrics present if we computed them into `totals`
+        present = [c for c in cols_list if (c in pdf.columns) or (c in totals)]
         if not present:
             continue
-        st.markdown(f"### {section} – Season totals")
+        st.subheader(f"{section}")
         metrics = st.columns(len(present))
         for i, c in enumerate(present):
-            val = int(totals.get(c, 0))
             label = COL_LABELS.get(c, c.replace("_", " ").title())
-            metrics[i].metric(label, val)
+            val = totals.get(c, 0)
+            if c in {"rushing_avg", "receiving_avg", "avg_punt_yards"}:
+                metrics[i].metric(label, f"{float(val):.1f}")
+            else:
+                metrics[i].metric(label, int(float(val)))
 
     st.markdown("### Game log")
+
+    # Per-game averages for display
+    if "rushing_yards" in pdf.columns and "rush_attempts" in pdf.columns:
+        pdf["rushing_avg"] = (
+            pd.to_numeric(pdf["rushing_yards"], errors="coerce").fillna(0)
+            / pd.to_numeric(pdf["rush_attempts"], errors="coerce").replace(0, pd.NA)
+        ).fillna(0).round(1)
+    if "receiving_yards" in pdf.columns and "catches" in pdf.columns:
+        pdf["receiving_avg"] = (
+            pd.to_numeric(pdf["receiving_yards"], errors="coerce").fillna(0)
+            / pd.to_numeric(pdf["catches"], errors="coerce").replace(0, pd.NA)
+        ).fillna(0).round(1)
+
     display_cols = [c for c in [
         "game_date", "week_number",
         "passing_completions", "passing_attempts", "passing_tds", "passing_yards",
-        "rush_attempts", "rushing_yards", "rushing_tds",
-        "catches", "receiving_yards", "receiving_tds",
-        "total_tackles", "sacks", "interceptions",
+        "rush_attempts", "rushing_yards", "rushing_tds", "rushing_avg",
+        "catches", "receiving_yards", "receiving_tds", "receiving_avg",
+        "total_tackles", "solo_tackles", "assisted_tackles", "sacks", "interceptions", "deflections",
         "fg_made", "pat_made",
         "punts", "punt_yards",
         "kick_returns", "kick_return_yards", "punt_returns", "punt_return_yards"
     ] if c in pdf.columns]
+
     pdf_disp = pdf.sort_values(["game_date", "week_number"], na_position="last")[display_cols]
     st.dataframe(humanize_cols(pdf_disp), use_container_width=True)
 
@@ -508,13 +550,6 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**Navigation**")
 NAV_ITEMS = ["Season Leaders", "Weekly View", "Player Details"]
 nav = st.sidebar.selectbox("", NAV_ITEMS, label_visibility="collapsed", key="nav")
-
-# Staff info
-#st.sidebar.markdown("---")
-#hc = st.secrets.get("STAFF_HEAD_COACH", "")
-#oc = st.secrets.get("STAFF_OC", "")
-#dc = st.secrets.get("STAFF_DC", "")
-#st.sidebar.caption(f"Head Coach: {hc}  \nOffensive Coordinator: {oc}  \nDefensive Coordinator: {dc}")
 
 # ============================
 # Season Leaders view (tables)
@@ -651,7 +686,7 @@ elif nav == "Weekly View":
     else:
         players_totals["display_name"] = players_totals["player_name"]
 
-    st.subheader(f"Players – Week {selected_week} Totals")
+    st.subheader(f"Week {selected_week} Totals")
 
     # Include new stats in the table (Deflections next to Interceptions)
     show_cols = [c for c in [
