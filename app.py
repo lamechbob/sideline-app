@@ -264,9 +264,14 @@ def humanize_cols(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _label_with_jersey(name: str, jersey) -> str:
+    # Show jersey if it’s a real number, including 0
     try:
-        j = int(jersey)
-        if j > 0:
+        import pandas as pd
+        if jersey is None or (isinstance(jersey, float) and pd.isna(jersey)):
+            return name
+        j = int(float(jersey))
+        # Football allows 0; negative is not a real jersey so skip
+        if j >= 0:
             return f"#{j} {name}"
     except Exception:
         pass
@@ -724,15 +729,46 @@ elif nav == "Weekly View":
 # ============================
 elif nav == "Player Details":
     st.subheader("Player Details")
-    players = f[["player_id", "player_name"]].dropna().drop_duplicates().sort_values("player_name")
-    if players.empty:
+
+    if f.empty:
         st.info("No players found.")
         st.stop()
-    name_to_id = dict(zip(players["player_name"], players["player_id"].astype(str)))
-    sel_name = st.selectbox("Player", players["player_name"].tolist())
-    if sel_name:
-        pid = name_to_id[sel_name]
-        show_player_detail(pid, season_year=FIXED_SEASON, full_df=summary_df, roster_df=roster_df)
+
+    # Build latest jersey per player (by game_date), then label as "#N First Last"
+    cols = ["player_id", "player_name", "game_date"]
+    if "jersey_number" in f.columns:
+        cols.append("jersey_number")
+    pf = f[cols].dropna(subset=["player_id", "player_name"]).copy()
+
+    pf["game_date"] = pd.to_datetime(pf["game_date"], errors="coerce")
+    if "jersey_number" not in pf.columns:
+        pf["jersey_number"] = pd.NA
+
+    pf = pf.sort_values(["player_id", "game_date"], na_position="first")
+    latest = (
+        pf.groupby("player_id", as_index=False)
+          .agg({"player_name": "last", "jersey_number": "last"})
+    )
+
+    # Sort by jersey (numeric; NaN last), then name
+    latest["jersey_sort"] = pd.to_numeric(latest["jersey_number"], errors="coerce")
+    latest = latest.sort_values(["jersey_sort", "player_name"], na_position="last").reset_index(drop=True)
+
+    # Labels like "#0 Steven Wright" (uses helper that allows 0)
+    label_map = {
+        row.player_id: _label_with_jersey(row.player_name, row.jersey_number)
+        for _, row in latest.iterrows()
+    }
+
+    options = latest["player_id"].astype(str).tolist()
+    sel_pid = st.selectbox(
+        "Player",
+        options=options,
+        format_func=lambda pid: label_map.get(pid, pid),
+        key="player_details_select",
+    )
+
+    show_player_detail(sel_pid, season_year=FIXED_SEASON, full_df=summary_df, roster_df=roster_df)
 
 # ============================
 # Footer
