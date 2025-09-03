@@ -694,6 +694,7 @@ elif nav == "Weekly View":
     st.subheader(f"Week {selected_week} Totals")
 
     # Include new stats in the table (Deflections next to Interceptions)
+    # Include new stats in the table (Deflections next to Interceptions)
     show_cols = [c for c in [
         "display_name",
         "passing_yards",
@@ -711,7 +712,9 @@ elif nav == "Weekly View":
         "sacks",
         "interceptions",
         "deflections",             # next to Interceptions
+        "fg_attempts",             # <-- added
         "fg_made",
+        "pat_attempts",            # <-- added
         "pat_made",
         "punts",
         "punt_yards",
@@ -720,6 +723,7 @@ elif nav == "Weekly View":
         "punt_returns",
         "punt_return_yards",
     ] if c in players_totals.columns]
+
 
     table = players_totals[show_cols].rename(columns={"display_name": "Player"})
     st.dataframe(humanize_cols(table), use_container_width=True, hide_index=True)

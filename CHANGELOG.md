@@ -7,7 +7,7 @@ Release cadence: weekly on Wednesdays.
 
 ---
 
-## [Unreleased] — next scheduled release: 2025-09-03
+## [Unreleased] — next scheduled release: 2025-09-10
 
 ### In Progress
 
@@ -22,6 +22,22 @@ Release cadence: weekly on Wednesdays.
 - **Social graphics:**
   - Add exportable stat graphics sized for Instagram feed (1080×1350) and stories (1080×1920).
   - Simple preset layouts for player highlights and weekly leaders.
+
+---
+
+## [0.4.0] — 2025-09-03
+### Added
+- **Weekly View**
+  - Display **FG Attempts** and **PAT Attempts**.
+
+### Changed
+- **Weekly View**
+  - Kicking columns now list **Attempts** before **Made** (FG Attempts → FG Made; PAT Attempts → PAT Made) for readability.
+
+### Fixed
+
+### Notes
+- No schema changes required beyond having `fg_attempts` and `pat_attempts` present (normalizers already map common variants).
 
 ---
 
