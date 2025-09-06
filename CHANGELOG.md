@@ -25,6 +25,24 @@ Release cadence: weekly on Wednesdays.
 
 ---
 
+## [0.4.1] - 2025-09-06
+
+### Added
+- Tackle for Loss (TFL) to the Excel template for game stats.
+- New StatAction events to support TFL tracking: `Tackle For Loss` and `Tackle For Loss Assist`.
+
+### Changed
+- Database View (`public.player_week_stats`):
+  - Added `tackles_for_loss` column next to tackle stats.
+  - Updated `total_tackles` calculation to match official stat practice (sacks count as tackles).
+- Streamlit App:
+  - App now trusts `total_tackles` from the database (no more client-side recompute).
+  - Displayed **Tackles for Loss** in:
+    - Season Totals (Defense block)
+    - Weekly View table (next to Sacks)
+
+---
+
 ## [0.4.0] — 2025-09-03
 ### Added
 - **Weekly View**

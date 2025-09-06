@@ -86,7 +86,7 @@ except Exception:
     LOGO_WIDTH = 180
 
 # Whether to count sacks inside total tackles when recomputing totals.
-INCLUDE_SACKS_IN_TACKLES = bool(st.secrets.get("INCLUDE_SACKS_IN_TACKLES", True))
+INCLUDE_SACKS_IN_TACKLES = bool(st.secrets.get("INCLUDE_SACKS_IN_TACKLES", False))
 
 # Fixed context
 FIXED_SEASON = 2025
@@ -106,12 +106,14 @@ STAT_COLS = [
     "rush_attempts", "rushing_yards", "rushing_tds",
     "targets", "catches", "receiving_yards", "receiving_tds",
     "solo_tackles", "assisted_tackles", "total_tackles",
-    "sacks", "deflections", "interceptions", "defensive_tds", "safeties",
+    "sacks", "tackles_for_loss",   # <-- add this line
+    "deflections", "interceptions", "defensive_tds", "safeties",
     "fg_attempts", "fg_made", "pat_attempts", "pat_made",
     "punts", "punt_yards",
     "kick_returns", "kick_return_yards",
     "punt_returns", "punt_return_yards",
 ]
+
 
 COL_LABELS: Dict[str, str] = {
     "passing_yards": "Passing Yards",
@@ -131,6 +133,7 @@ COL_LABELS: Dict[str, str] = {
     "assisted_tackles": "Assisted Tackles",
     "total_tackles": "Total Tackles",
     "sacks": "Sacks",
+    "tackles_for_loss": "Tackles for Loss",  # <-- add this
     "deflections": "Pass Deflections",
     "interceptions": "Interceptions",
     "defensive_tds": "Defensive TDs",
@@ -457,7 +460,9 @@ def show_player_detail(player_id: str, season_year: int, full_df: pd.DataFrame, 
         ("Passing",   ["passing_yards", "passing_completions", "passing_attempts", "passing_tds"]),
         ("Rushing",   ["rush_attempts", "rushing_yards", "rushing_avg", "rushing_tds"]),
         ("Receiving", ["targets", "catches", "receiving_yards", "receiving_avg", "receiving_tds"]),
-        ("Defense",   ["total_tackles", "solo_tackles", "assisted_tackles", "sacks", "interceptions", "deflections", "defensive_tds", "safeties"]),
+        ("Defense", ["total_tackles", "solo_tackles", "assisted_tackles",
+                     "sacks", "tackles_for_loss",  # <-- add here
+                     "interceptions", "deflections", "defensive_tds", "safeties"]),
         ("Kicking",   ["fg_attempts", "fg_made", "pat_attempts", "pat_made", "punts"]),
         ("Returns",   ["kick_returns", "kick_return_yards", "punt_returns", "punt_return_yards"]),
     ]
@@ -709,7 +714,10 @@ elif nav == "Weekly View":
         "receiving_tds",
         "targets",
         "total_tackles",
+        "solo_tackles",
+        "assisted_tackles",
         "sacks",
+        "tackles_for_loss",  # <-- add here
         "interceptions",
         "deflections",             # next to Interceptions
         "fg_attempts",             # <-- added
